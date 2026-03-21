@@ -138,8 +138,8 @@ namespace cs2_rockthevote
                         var firstCourse = courses.EnumerateArray().FirstOrDefault();
                         if (firstCourse.ValueKind != JsonValueKind.Undefined
                             && firstCourse.TryGetProperty("filters", out var filters)
-                            && filters.TryGetProperty("vanilla", out var vanilla)
-                            && vanilla.TryGetProperty("nub_tier", out var nubTier))
+                            && filters.TryGetProperty("classic", out var classic)
+                            && classic.TryGetProperty("nub_tier", out var nubTier))
                         {
                             string tierStr = nubTier.GetString() ?? "";
                             tier = TierMap.TryGetValue(tierStr, out var mapped) ? mapped : tierStr;
@@ -303,8 +303,8 @@ namespace cs2_rockthevote
                 var firstCourse = courses.EnumerateArray().FirstOrDefault();
                 if (firstCourse.ValueKind != JsonValueKind.Undefined
                     && firstCourse.TryGetProperty("filters", out var filters)
-                    && filters.TryGetProperty("vanilla", out var vanilla)
-                    && vanilla.TryGetProperty("nub_tier", out var nubTier))
+                    && filters.TryGetProperty("classic", out var classic)
+                    && classic.TryGetProperty("nub_tier", out var nubTier))
                 {
                     string tierStr = nubTier.GetString() ?? "";
                     return TierMap.TryGetValue(tierStr, out var mapped) ? mapped : tierStr;
