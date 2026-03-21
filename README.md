@@ -45,7 +45,7 @@ Map voting plugin for Counter-Strike 2 Kreedz. Maps only change when players vot
 ## Installation
 
 - Download the [latest release](https://github.com/FemboyKZ/cs2-rockthevote/releases)
-- Extract the .zip file into `addons/counterstrikesharp/plugins`
+- Extract the .zip file into `/game/csgo/`
 - Update the maplist.txt to include your desired maps.
 
 ## [ Configuration ]
