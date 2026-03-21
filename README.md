@@ -1,14 +1,16 @@
 # CS2 RockTheVote (RTV)
+
 General purpose map voting plugin.
 
-# Features
+## Features
+
 - Reads from a custom maplist
 - RTV Command (Using !rtv in chat, or with Panorama system that is built into CS2 [F1 = Yes, F2 = No])
 - End of Map Vote. Supports map cooldown, map extension option.
 - Nominate command (nominate a map to appear in the map vote). Partial name matching, and conflicting map name resolution (surf_beginner, surf_beginner2). Limit 1 per player.
 
-  ![nominate](https://github.com/user-attachments/assets/6ac056bc-9842-4422-ac0d-c7cd814b3ba6)
-  
+![nominate](https://github.com/user-attachments/assets/6ac056bc-9842-4422-ac0d-c7cd814b3ba6)
+
 - Supports workshop maps, and custom map names. E.g. "surf_beginner (T1, Staged)"
 - Nextmap command. Prints the next map to chat.
 - Translated (Google Translate, ymmv)
@@ -18,17 +20,18 @@ General purpose map voting plugin.
 - Optional sound alert when map vote or !rtv starts (configurable sound)
 - Optional hud alert
   
-  ![hudalert](https://github.com/user-attachments/assets/23c35f20-b4f0-4122-b241-287b44efdb27)
+![hudalert](https://github.com/user-attachments/assets/23c35f20-b4f0-4122-b241-287b44efdb27)
   
 - Optional chat/hud vote countdown
 
- ![hudcountdown](https://github.com/user-attachments/assets/e1034f3c-340a-4d88-8d8a-96526f333fad)
- ![chatcountdown](https://github.com/user-attachments/assets/803826a1-665b-4ab7-9e38-fbb0e8d702be)
+![hudcountdown](https://github.com/user-attachments/assets/e1034f3c-340a-4d88-8d8a-96526f333fad)
+![chatcountdown](https://github.com/user-attachments/assets/803826a1-665b-4ab7-9e38-fbb0e8d702be)
 
 - Panorama Vote (F1 = Yes, F2 = No) for !rtv & !voteextend (optional)
 
 ![panoramavote](https://github.com/user-attachments/assets/31ebe223-225f-4cef-812e-3bf6c56e590d)
 ![voteextend](https://github.com/user-attachments/assets/5cfd9a5f-36a5-4a11-ae26-3e74d5387251)
+
 - ChatMenu/CenterHtmlMenu/WasdMenu/ConsoleMenu for EndOfMapVote/!nominate/!votemap (ScreenMenu temporarily removed)
 
 ![wasdmenu](https://github.com/user-attachments/assets/1df185bf-4313-4010-81de-98111ae383dc)
@@ -37,8 +40,9 @@ General purpose map voting plugin.
 
 - Maplist Validator. Send to error log or Discord when a map is no longer available on the workshop.
 
-  ![MapDiscordWebhook](https://github.com/user-attachments/assets/eaf8d706-abd1-4258-a7a3-b9cb44500802)
-  ![WorkshopMapLog](https://github.com/user-attachments/assets/2f65dd9d-1ee9-4217-a753-81358973df2e)
+![MapDiscordWebhook](https://github.com/user-attachments/assets/eaf8d706-abd1-4258-a7a3-b9cb44500802)
+![WorkshopMapLog](https://github.com/user-attachments/assets/2f65dd9d-1ee9-4217-a753-81358973df2e)
+
 - !maps command. List all maps available in the console.
   
 ![mapscommand](https://github.com/user-attachments/assets/d4ab1377-0b29-45b6-bdaa-06b6a7664751)
@@ -46,18 +50,19 @@ General purpose map voting plugin.
 - !reloadmaps command. Rebuild the map list mid game
 - !reloadrtv command. Reload the rtv config mid game
 
-
 ## Requirements
-[CounterStrikeSharp](https://github.com/roflmuffin/CounterStrikeSharp) (Tested on v337)
 
-[CS2MenuManager](https://github.com/schwarper/CS2MenuManager) (Tested on v39)
+- [CounterStrikeSharp](https://github.com/roflmuffin/CounterStrikeSharp) (Tested on v337)
+- [CS2MenuManager](https://github.com/schwarper/CS2MenuManager) (Tested on v39)
 
-# Installation
-- Download the latest release from https://github.com/M-archand/cs2-rockthevote/releases
+## Installation
+
+- Download the [latest release](https://github.com/FemboyKZ/cs2-rockthevote/releases)
 - Extract the .zip file into `addons/counterstrikesharp/plugins`
 - Update the maplist.example.txt to inlcude your desired maps and then rename it to maplist.txt
 
 ## [ Configuration ]
+
 - A config file will be created in `addons/counterstrikesharp/configs/plugins/RockTheVote` the first time you load the plugin.
 - Changes in the config file will require you to reload the plugin, restart the server, or using !reloadrtv (changing the map won't work).
 - Maps that will be used in RTV/nominate/votemap/end of map vote are located in addons/counterstrikesharp/plugins/RockTheVote/maplist.txt This canbe updated mid-game using the command !reloadmaps
@@ -77,8 +82,8 @@ General purpose map voting plugin.
     "SoundPath": "sounds/vo/announcer/cs2_classic/felix_broken_fang_pick_1_map_tk01.vsnd_c",
     "MapsToShow": 6, # How many maps to show in the resulting map vote if the rtv passes
     "AlwaysActive": true, # true = rtv vote is always running once triggered by an initional rtv. false = timed duration (RtvVoteDuration)
-	  "AlwaysActiveReminder": true, # true = print a reminder to chat at a given interval that an rtv vote is active, and how many more votes are required to pass
-	  "ReminderInterval": 120, # how often the reminder is printed to chat in seconds
+    "AlwaysActiveReminder": true, # true = print a reminder to chat at a given interval that an rtv vote is active, and how many more votes are required to pass
+    "ReminderInterval": 120, # how often the reminder is printed to chat in seconds
     "RtvVoteDuration": 60, # How long the rtv vote lasts
     "MapVoteDuration": 60, # How long the resulting map vote will last
     "CooldownDuration": 180, # How many seconds must pass before another !rtv can be initiated
@@ -147,8 +152,8 @@ General purpose map voting plugin.
     "HideHudAfterVote": true, # Only applicable in MenuType = HudMenu. true = closes the hud after the player has voted
     "RandomStartMap": false, # true = a random map will be used when the server restarts. false = will use whatever you set in your startup command
     "IncludeSpectator": true, # true = spectators can vote (only applicable to !rtv). false = spectators can't vote
-  	"IncludeAFK": false, # true = AFK players are included in the vote count (only applicable to !rtv). false = AFK players aren't included in the vote count
-  	"AFKCheckInterval": 60, # how often an AFK check occurs in seconds (compares players coordinates between current and last check, also run again when the vote is initiated)
+    "IncludeAFK": false, # true = AFK players are included in the vote count (only applicable to !rtv). false = AFK players aren't included in the vote count
+    "AFKCheckInterval": 60, # how often an AFK check occurs in seconds (compares players coordinates between current and last check, also run again when the vote is initiated)
     "EnableMapValidation": true, # true = the plugin will check if there are any workshop maps in your maplist.txt that are no longer on the workshop
     "SteamApiKey": "", # blank = use 1 request/second HTML checks. Set to a Steam Web API key to batch validation requests (100 IDs per call) Get one here: https://steamcommunity.com/dev/apikey
     "DiscordWebhook": "" # blank = no alert. Discord Webhook added will alert you to any workshop maps in your maplist.txt that are no longer on the workshop
@@ -156,21 +161,24 @@ General purpose map voting plugin.
 }
 ```
   
-# Adding workshop maps
-```
+## Adding workshop maps
+
+```txt
 surf_beginner:3070321829
 surf_nyx (T1, Linear):3129698096
 de_dust2
 ```
 
-# Roadmap
+## Roadmap
+
 - [ ] Automatically remove invalid workshop maps (currently only sends notification)
 - [ ] !extend max extension value
 - [ ] Add vote percentage required for winning map (e.g. must receive 25% of the vote)
 - [ ] Add vote runnoff (e.g. 2nd stage of voting between 2 maps if minimum vote percentage not achieved for a map)
 - [ ] Add !revote to allow players to change their vote
 
-# Translations
+## Translations
+
 | Language             |
 | -------------------- |
 | English              |
