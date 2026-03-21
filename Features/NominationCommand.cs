@@ -177,12 +177,16 @@ namespace cs2_rockthevote
             }
 
             // Try local maplist first
-            var resolved = ResolveMapNameLocal(player, mapName);
+            var resolved = ResolveMapNameLocal(player, mapName, out bool menuShown);
             if (resolved != null)
             {
                 Nominate(player, resolved);
                 return;
             }
+
+            // If a multi-match menu was already shown, don't fall through to API
+            if (menuShown)
+                return;
 
             // No local match, try CS2KZ API
             player.PrintToChat(_localizer.LocalizeWithPrefix("nominate.searching-api"));
@@ -286,9 +290,11 @@ namespace cs2_rockthevote
 
         // Try to resolve user input against the local maplist only.
         // Returns null if no match (caller should try API fallback).
-        // Shows a multi-match menu if ambiguous.
-        private string? ResolveMapNameLocal(CCSPlayerController player, string input)
+        // Sets menuShown=true if a multi-match menu was displayed.
+        private string? ResolveMapNameLocal(CCSPlayerController player, string input, out bool menuShown)
         {
+            menuShown = false;
+
             var exact = _mapLister.GetExactMapName(input);
             if (exact is not null)
                 return exact;
@@ -301,6 +307,7 @@ namespace cs2_rockthevote
             if (matches.Count > 1)
             {
                 ShowMultipleMatchesMenu(player, matches);
+                menuShown = true;
                 return null;
             }
 
