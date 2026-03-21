@@ -49,7 +49,7 @@ namespace cs2_rockthevote
 
         private static string GetMaplistPath()
         {
-            return Path.Combine(Server.GameDirectory, "cfg", "maplist.txt");
+            return Path.Combine(Server.GameDirectory, "csgo", "cfg", "maplist.txt");
         }
 
         public void Clear()
