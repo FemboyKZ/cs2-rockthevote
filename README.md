@@ -95,7 +95,8 @@ Map voting plugin for Counter-Strike 2 Kreedz. Maps only change when players vot
     "IncludeSpectator": true,
     "EnableMapValidation": true,
     "SteamApiKey": "",
-    "DiscordWebhook": ""
+    "DiscordWebhook": "",
+    "KzTierMode": "classic"
   }
 }
 ```
