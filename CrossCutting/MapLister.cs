@@ -42,9 +42,16 @@ namespace cs2_rockthevote
             ["death"] = "T8"
         };
 
+        private string _kzTierMode = "classic";
+
         public MapLister(ILogger<MapLister> logger)
         {
             _logger = logger;
+        }
+
+        public void OnConfigParsed(Config config)
+        {
+            _kzTierMode = config.General.KzTierMode;
         }
 
         private static string GetMaplistPath()
@@ -138,8 +145,8 @@ namespace cs2_rockthevote
                         var firstCourse = courses.EnumerateArray().FirstOrDefault();
                         if (firstCourse.ValueKind != JsonValueKind.Undefined
                             && firstCourse.TryGetProperty("filters", out var filters)
-                            && filters.TryGetProperty("classic", out var classic)
-                            && classic.TryGetProperty("nub_tier", out var nubTier))
+                            && filters.TryGetProperty(_kzTierMode, out var modeFilters)
+                            && modeFilters.TryGetProperty("nub_tier", out var nubTier))
                         {
                             string tierStr = nubTier.GetString() ?? "";
                             tier = TierMap.TryGetValue(tierStr, out var mapped) ? mapped : tierStr;
@@ -296,15 +303,15 @@ namespace cs2_rockthevote
             }
         }
 
-        private static string ResolveTier(JsonElement mapEl)
+        private string ResolveTier(JsonElement mapEl)
         {
             if (mapEl.TryGetProperty("courses", out var courses))
             {
                 var firstCourse = courses.EnumerateArray().FirstOrDefault();
                 if (firstCourse.ValueKind != JsonValueKind.Undefined
                     && firstCourse.TryGetProperty("filters", out var filters)
-                    && filters.TryGetProperty("classic", out var classic)
-                    && classic.TryGetProperty("nub_tier", out var nubTier))
+                    && filters.TryGetProperty(_kzTierMode, out var modeFilters)
+                    && modeFilters.TryGetProperty("nub_tier", out var nubTier))
                 {
                     string tierStr = nubTier.GetString() ?? "";
                     return TierMap.TryGetValue(tierStr, out var mapped) ? mapped : tierStr;

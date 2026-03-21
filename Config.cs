@@ -51,6 +51,7 @@ namespace cs2_rockthevote
         public bool EnableMapValidation { get; set; } = true;
         public string SteamApiKey { get; set; } = "";
         public string DiscordWebhook { get; set; } = "";
+        public string KzTierMode { get; set; } = "classic";
     }
 
     public class Config : BasePluginConfig, IBasePluginConfig
