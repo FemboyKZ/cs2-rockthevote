@@ -205,9 +205,16 @@ namespace cs2_rockthevote
         public void AddDynamicMap(Map map)
         {
             if (Maps is null) return;
-            if (Maps.Any(m => m.Name.Equals(map.Name, StringComparison.OrdinalIgnoreCase)))
+            string baseName = GetBaseMapName(map.Name);
+            if (Maps.Any(m => GetBaseMapName(m.Name).Equals(baseName, StringComparison.OrdinalIgnoreCase)))
                 return;
             Maps = [.. Maps, map];
+        }
+
+        private static string GetBaseMapName(string displayName)
+        {
+            var idx = displayName.IndexOf(" (", StringComparison.Ordinal);
+            return idx >= 0 ? displayName.Substring(0, idx) : displayName;
         }
 
         // Look up a map by workshop ID. Tries CS2KZ API first, then Steam Workshop.
