@@ -61,10 +61,10 @@ Map voting plugin for Counter-Strike 2 Kreedz. Maps only change when players vot
     "Enabled": true,
     "MapChangeDelay": 5,
     "MapsToShow": 6,
-    "ReminderInterval": 180,
+    "ReminderInterval": 60,
     "MapVoteDuration": 60,
-    "CooldownDuration": 180,
-    "MapStartDelay": 180,
+    "CooldownDuration": 30,
+    "MapStartDelay": 30,
     "VotePercentage": 51
   },
   "MapVote": {
@@ -72,10 +72,10 @@ Map voting plugin for Counter-Strike 2 Kreedz. Maps only change when players vot
     "EnableRevote": true,
     "MapsToShow": 6,
     "MenuType": "ChatMenu",
-    "VoteDuration": 150,
-    "CountdownInterval": 30,
+    "VoteDuration": 90,
+    "CountdownInterval": 15,
     "ChatMapChoiceReminder": true,
-    "ChatMapChoiceInterval": 30,
+    "ChatMapChoiceInterval": 15,
     "MinWinPercentage": 0,
     "RunoffEnabled": true
   },
@@ -89,7 +89,7 @@ Map voting plugin for Counter-Strike 2 Kreedz. Maps only change when players vot
   "MapChooser": {
     "Command": "mapmenu,mm",
     "MenuType": "ChatMenu",
-    "Permission": "@css/root,@css/changemap"
+    "Permission": "@css/changemap"
   },
   "General": {
     "AdminPermission": "@css/root",
