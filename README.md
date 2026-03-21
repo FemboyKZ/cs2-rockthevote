@@ -83,7 +83,8 @@ Map voting plugin for Counter-Strike 2 Kreedz. Maps only change when players vot
     "Enabled": true,
     "MenuType": "ChatMenu",
     "NominateLimit": 1,
-    "Permission": ""
+    "Permission": "",
+    "ExternalNominatePermission": "@css/changemap"
   },
   "MapChooser": {
     "Command": "mapmenu,mm",

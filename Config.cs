@@ -35,6 +35,7 @@ namespace cs2_rockthevote
         public string MenuType { get; set; } = "ChatMenu";
         public int NominateLimit { get; set; } = 1;
         public string Permission { get; set; } = "";
+        public string ExternalNominatePermission { get; set; } = "@css/changemap";
     }
 
     public class MapChooserConfig

@@ -153,6 +153,9 @@ namespace cs2_rockthevote
             // Check if input looks like a workshop ID (all digits, 8+ chars)
             if (mapName.All(char.IsDigit) && mapName.Length >= 8)
             {
+                if (!HasExternalNominatePermission(player))
+                    return;
+
                 player.PrintToChat(_localizer.LocalizeWithPrefix("nominate.workshop-looking-up"));
                 int slot = player.Slot;
                 _ = Task.Run(async () =>
@@ -189,6 +192,9 @@ namespace cs2_rockthevote
                 return;
 
             // No local match, try CS2KZ API
+            if (!HasExternalNominatePermission(player))
+                return;
+
             player.PrintToChat(_localizer.LocalizeWithPrefix("nominate.searching-api"));
             int playerSlot = player.Slot;
             _ = Task.Run(async () =>
@@ -286,6 +292,19 @@ namespace cs2_rockthevote
             }
 
             menu.Display(player, 0);
+        }
+
+        private bool HasExternalNominatePermission(CCSPlayerController player)
+        {
+            string perm = _nomConfig.ExternalNominatePermission;
+            if (string.IsNullOrWhiteSpace(perm))
+                return true;
+
+            if (AdminManager.PlayerHasPermissions(player, perm))
+                return true;
+
+            player.PrintToChat(_localizer.LocalizeWithPrefix("nominate.external-no-permission"));
+            return false;
         }
 
         // Try to resolve user input against the local maplist only.

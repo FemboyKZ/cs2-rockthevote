@@ -9,6 +9,7 @@
   "nominate.workshop-looking-up": "Looking up workshop ID...",
   "nominate.workshop-not-found": "{lightred}Workshop map not found.",
   "nominate.searching-api": "Map not on maplist, searching CS2KZ...",
+  "nominate.external-no-permission": "{lightred}You don't have permission to nominate maps outside the maplist.",
 
   "general.votes-needed": "({0} voted, {1} needed)",
   "general.invalid-map": "{lightred}Invalid map",
