@@ -1,0 +1,49 @@
+name: Build & Package
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore dependencies
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build -c Release --no-restore
+
+      - name: Publish
+        run: dotnet publish -c Release --no-build -o out
+
+      - name: Package release zip
+        run: |
+          mkdir -p staging/addons/counterstrikesharp/plugins/RockTheVote/lang
+          cp out/RockTheVote.dll staging/addons/counterstrikesharp/plugins/RockTheVote/
+          cp out/RockTheVote.deps.json staging/addons/counterstrikesharp/plugins/RockTheVote/
+          cp out/lang/*.json staging/addons/counterstrikesharp/plugins/RockTheVote/lang/
+          cd staging && zip -r ../RockTheVote.zip addons/
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: RockTheVote
+          path: RockTheVote.zip
+
+      - name: Create release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: RockTheVote.zip
