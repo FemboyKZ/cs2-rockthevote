@@ -1,7 +1,6 @@
 using CounterStrikeSharp.API.Core;
 using CounterStrikeSharp.API.Core.Attributes.Registration;
 using CounterStrikeSharp.API.Modules.Commands;
-using CounterStrikeSharp.API.Modules.Utils;
 using Microsoft.Extensions.Logging;
 
 namespace cs2_rockthevote
@@ -39,16 +38,15 @@ namespace cs2_rockthevote
                 var maps = _mapLister.Maps;
                 if (maps == null || maps.Length == 0)
                 {
-                    player.PrintToChat($" {ChatColors.LightRed}[MapList]{ChatColors.Default} The map list is empty!");
+                    player.PrintToChat(_localizer.LocalizeWithPrefix("maplist.empty"));
                     return;
                 }
 
-                // Tell them to check console
-                player.PrintToChat($" {ChatColors.LightRed}[MapList]{ChatColors.Default} Maps have been printed to the console.");
+                player.PrintToChat(_localizer.LocalizeWithPrefix("maplist.printed-to-console"));
 
                 player.PrintToConsole("====================================");
-                player.PrintToConsole("             Server Map List");
-                player.PrintToConsole($"             Total Maps: {maps.Length}");
+                player.PrintToConsole($"             {_localizer.Localize("maplist.console-title")}");
+                player.PrintToConsole($"             {_localizer.Localize("maplist.console-total", maps.Length)}");
                 player.PrintToConsole("====================================");
 
                 foreach (var map in maps)

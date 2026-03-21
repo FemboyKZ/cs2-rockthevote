@@ -14,7 +14,7 @@ namespace cs2_rockthevote
         private readonly MapLister _mapLister;
         private Plugin? _plugin;
 
-        private string[] _permission = ["@css/root"];
+        private string[] _permission = ["@css/changemap"];
         private MapChooserConfig _config = new();
 
         public MapChooserCommand(StringLocalizer localizer, MapLister mapLister, ILogger<MapChooserCommand> logger)
@@ -65,6 +65,36 @@ namespace cs2_rockthevote
                     return;
                 }
             }
+
+            var arg = info.GetArg(1)?.Trim() ?? "";
+
+            // Workshop ID provided, look it up and change map
+            if (arg.Length >= 8 && arg.All(char.IsDigit))
+            {
+                player.PrintToChat(_localizer.LocalizeWithPrefix("nominate.workshop-looking-up"));
+                int slot = player.Slot;
+                _ = Task.Run(async () =>
+                {
+                    var result = await _mapLister.LookupByWorkshopIdAsync(arg);
+                    Server.NextWorldUpdate(() =>
+                    {
+                        var p = Utilities.GetPlayerFromSlot(slot);
+                        if (p == null || !p.IsValid) return;
+
+                        if (result == null)
+                        {
+                            p.PrintToChat(_localizer.LocalizeWithPrefix("nominate.workshop-not-found"));
+                            return;
+                        }
+
+                        _mapLister.AddDynamicMap(result);
+                        ChangeToMap(result);
+                    });
+                });
+                return;
+            }
+
+            // No argument — show menu
             var maps = _mapLister.Maps;
             if (maps is null || maps.Length == 0)
                 return;
@@ -83,15 +113,19 @@ namespace cs2_rockthevote
                         return;
 
                     MenuManager.CloseActiveMenu(p);
-
-                    if (!string.IsNullOrEmpty(map.Id) && ulong.TryParse(map.Id, out var mapId))
-                        Server.ExecuteCommand($"host_workshop_map {mapId}");
-                    else
-                        Server.ExecuteCommand($"changelevel {map.Name}");
+                    ChangeToMap(map);
                 });
             }
 
             menu.Display(player, 0);
+        }
+
+        private static void ChangeToMap(Map map)
+        {
+            if (!string.IsNullOrEmpty(map.Id) && ulong.TryParse(map.Id, out var mapId))
+                Server.ExecuteCommand($"host_workshop_map {mapId}");
+            else
+                Server.ExecuteCommand($"changelevel {map.Name}");
         }
     }
 }

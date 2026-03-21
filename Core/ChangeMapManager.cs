@@ -1,4 +1,4 @@
-﻿using CounterStrikeSharp.API;
+using CounterStrikeSharp.API;
 using CounterStrikeSharp.API.Core.Attributes.Registration;
 using CounterStrikeSharp.API.Core;
 using CounterStrikeSharp.API.Modules.Timers;
@@ -33,9 +33,11 @@ namespace cs2_rockthevote
         public string? NextMap { get; private set; } = null;
         private string _prefix = DEFAULT_PREFIX;
         private const string DEFAULT_PREFIX = "rtv.prefix";
+
+        public event Action? MapChangeFailed;
         private bool _mapEnd = false;
 
-        private Map[] _maps = new Map[0];
+        private Map[] _maps = [];
         private Config? _config;
 
         private Timer? _mapChangeVerifyTimer;
@@ -82,7 +84,7 @@ namespace cs2_rockthevote
             Map? map = _maps.FirstOrDefault(x => string.Equals(x.Name, NextMap, StringComparison.OrdinalIgnoreCase));
             if (map == null)
             {
-                Server.PrintToChatAll($"[RTV Debug] Could not resolve map object for '{NextMap}'");
+                Server.PrintToChatAll(_localizer.LocalizeWithPrefixInternal(_prefix, "general.map-resolve-failed", NextMap ?? ""));
                 return false;
             }
 
@@ -108,9 +110,9 @@ namespace cs2_rockthevote
                     Server.ExecuteCommand($"ds_workshop_changelevel {map.Name}");
                 }
 
-                // Create 45s verification timer. If we’re still on the same map as when we started, pick a random fallback map and try again
+                // Create 30s verification timer - log debug info if map change failed
                 _mapChangeVerifyTimer?.Kill();
-                _mapChangeVerifyTimer = _plugin?.AddTimer(45.0F, () =>
+                _mapChangeVerifyTimer = _plugin?.AddTimer(30.0F, () =>
                 {
                     try
                     {
@@ -118,47 +120,18 @@ namespace cs2_rockthevote
 
                         if (string.Equals(current, mapBefore, StringComparison.OrdinalIgnoreCase))
                         {
-                            var candidates = _maps
-                                .Where(m =>
-                                    !string.Equals(m.Name, current, StringComparison.OrdinalIgnoreCase) &&
-                                    !string.Equals(m.Name, map.Name, StringComparison.OrdinalIgnoreCase))
-                                .ToList();
+                            Server.PrintToConsole($"[RTV] Map change to '{map.Name}' failed - still on '{current}' after 30s.");
+                            Server.PrintToConsole($"[RTV] Map details: Name='{map.Name}', Id='{map.Id}', IsMapValid={Server.IsMapValid(map.Name)}");
+                            Server.PrintToConsole($"[RTV] Available maps in maplist: {string.Join(", ", _maps.Select(m => m.Name))}");
 
-                            if (candidates.Count == 0)
-                            {
-                                candidates = _maps
-                                    .Where(m => !string.Equals(m.Name, current, StringComparison.OrdinalIgnoreCase))
-                                    .ToList();
-                            }
-
-                            if (candidates.Count == 0)
-                            {
-                                Server.PrintToConsole("[RTV] Fallback map selection failed: no candidates available.");
-                                return;
-                            }
-
-                            var random = new Random();
-                            var fallback = candidates[random.Next(candidates.Count)];
-
-                            Server.PrintToChatAll(_localizer.LocalizeWithPrefixInternal(_prefix, "general.changing-map", fallback.Name));
-
-                            if (Server.IsMapValid(fallback.Name))
-                            {
-                                Server.ExecuteCommand($"changelevel {fallback.Name}");
-                            }
-                            else if (fallback.Id is not null)
-                            {
-                                Server.ExecuteCommand($"host_workshop_map {fallback.Id}");
-                            }
-                            else
-                            {
-                                Server.ExecuteCommand($"ds_workshop_changelevel {fallback.Name}");
-                            }
+                            Server.PrintToChatAll(_localizer.LocalizeWithPrefixInternal(_prefix, "general.map-change-failed", map.Name));
+                            NextMap = null;
+                            MapChangeFailed?.Invoke();
                         }
                     }
                     catch (Exception ex)
                     {
-                        Server.PrintToConsole($"[RTV] Fallback map change check error: {ex.Message}");
+                        Server.PrintToConsole($"[RTV] Map change verification error: {ex.Message}");
                     }
                 }, TimerFlags.STOP_ON_MAPCHANGE); // auto-kill if the map did change
             });
@@ -178,14 +151,7 @@ namespace cs2_rockthevote
             {
                 if (_pluginState.MapChangeScheduled)
                 {
-                    var delay = (_config?.EndOfMapVote.DelayToChangeInTheEnd ?? 0) - 3.0F;
-                    if (delay < 0)
-                        delay = 0;
-
-                    _plugin?.AddTimer(delay, () =>
-                    {
-                        ChangeNextMap(true);
-                    });
+                    ChangeNextMap(true);
                 }
                 return HookResult.Continue;
             });

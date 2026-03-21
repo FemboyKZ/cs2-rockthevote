@@ -7,7 +7,6 @@ using CounterStrikeSharp.API.Modules.Utils;
 using CS2MenuManager.API.Menu;
 using CS2MenuManager.API.Class;
 using CS2MenuManager.API.Enum;
-using cs2_rockthevote.Core;
 using Microsoft.Extensions.Logging;
 
 namespace cs2_rockthevote
@@ -53,23 +52,29 @@ namespace cs2_rockthevote
         Dictionary<int, List<string>> Nominations = new();
         private ChatMenu? _nominationMenu;
         private NominateConfig _nomConfig = new();
-        private GameRules _gamerules;
         private StringLocalizer _localizer;
         private PluginState _pluginState;
-        private MapCooldown _mapCooldown;
         private MapLister _mapLister;
         private Plugin? _plugin;
 
-        public NominationCommand(MapLister mapLister, GameRules gamerules, StringLocalizer localizer, PluginState pluginState, MapCooldown mapCooldown, ILogger<NominationCommand> logger)
+        public NominationCommand(MapLister mapLister, ChangeMapManager changeMapManager, StringLocalizer localizer, PluginState pluginState, ILogger<NominationCommand> logger)
         {
             _mapLister = mapLister;
             _mapLister.EventMapsLoaded += OnMapsLoaded;
-            _gamerules = gamerules;
             _localizer = localizer;
             _pluginState = pluginState;
-            _mapCooldown = mapCooldown;
             _logger = logger;
-            _mapCooldown.EventCooldownRefreshed += OnMapsLoaded;
+            changeMapManager.MapChangeFailed += OnMapChangeFailed;
+        }
+
+        public void OnVoteEndedNoVotes()
+        {
+            Nominations.Clear();
+        }
+
+        private void OnMapChangeFailed()
+        {
+            Nominations.Clear();
         }
 
         public void OnMapStart(string map)
@@ -92,16 +97,10 @@ namespace cs2_rockthevote
 
             foreach (var map in _mapLister.Maps!.Where(x => !GetBaseMapName(x.Name).Equals(Server.MapName, StringComparison.OrdinalIgnoreCase)))
             {
-                bool isCooldown = _mapCooldown.IsMapInCooldown(map.Name);
-                string displayName = isCooldown ? $"{ChatColors.Grey}{map.Name}" : map.Name;
-
-                var item = _nominationMenu.AddItem(displayName, (player, _) =>
+                _nominationMenu.AddItem(map.Name, (player, _) =>
                 {
                     Nominate(player, map.Name);
                 });
-
-                if (isCooldown)
-                    item.DisableOption = DisableOption.DisableShowNumber;
             }
         }
 
@@ -110,15 +109,9 @@ namespace cs2_rockthevote
             if (player == null)
                 return;
 
-            if (_pluginState.DisableCommands || !_nomConfig.Enabled || _pluginState.EofVoteHappening)
+            if (!_nomConfig.Enabled || _pluginState.MapVoteHappening)
             {
                 player.PrintToChat(_localizer.LocalizeWithPrefix("general.validation.disabled"));
-                return;
-            }
-
-            if (_gamerules.WarmupRunning && !_nomConfig.EnabledInWarmup)
-            {
-                player.PrintToChat(_localizer.LocalizeWithPrefix("general.validation.warmup"));
                 return;
             }
             
@@ -145,57 +138,91 @@ namespace cs2_rockthevote
                 foreach (var m in _mapLister.Maps!
                             .Where(x => !GetBaseMapName(x.Name).Equals(Server.MapName, StringComparison.OrdinalIgnoreCase)))
                 {
-                    bool isCooldown = _mapCooldown.IsMapInCooldown(m.Name);
-                    string label = isCooldown ? $"{ChatColors.Grey}{m.Name}" : m.Name;
                     string chosen = m.Name;
 
-                    menu.AddItem(label, (p, _) =>
+                    menu.AddItem(m.Name, (p, _) =>
                     {
                         Nominate(p, chosen);
-                    }, isCooldown ? DisableOption.DisableShowNumber : DisableOption.None);
+                    });
                 }
 
                 menu.Display(player, 0);
                 return;
             }
 
-            var resolved = ResolveMapNameOrPrompt(player, mapName, _localizer);
-            if (resolved == null)
-                return;
-
-            Nominate(player, resolved);
-        }
-
-        /*
-        public void OpenScreenMenu(CCSPlayerController player)
-        {
-            // Build the list of map names, skipping the current map and the ones on cool down
-            var voteOptions = _mapLister.Maps!
-                .Where(m => !GetBaseMapName(m.Name)
-                       .Equals(Server.MapName, StringComparison.OrdinalIgnoreCase)
-                    && !_mapCooldown.IsMapInCooldown(m.Name))
-                .Select(m => m.Name)
-                .ToList();
-
-            // Guard: nothing to nominate
-            if (voteOptions.Count == 0)
+            // Check if input looks like a workshop ID (all digits, 8+ chars)
+            if (mapName.All(char.IsDigit) && mapName.Length >= 8)
             {
-                player.PrintToChat(_localizer.LocalizeWithPrefix("An error occured."));
-                _logger.LogError("[Nominate] An error occured while using the !nominate command with ScreenMenu, no maps could be found.");
+                player.PrintToChat(_localizer.LocalizeWithPrefix("nominate.workshop-looking-up"));
+                int slot = player.Slot;
+                _ = Task.Run(async () =>
+                {
+                    var result = await _mapLister.LookupByWorkshopIdAsync(mapName);
+                    Server.NextWorldUpdate(() =>
+                    {
+                        var p = Utilities.GetPlayerFromSlot(slot);
+                        if (p == null || !p.IsValid) return;
+
+                        if (result == null)
+                        {
+                            p.PrintToChat(_localizer.LocalizeWithPrefix("nominate.workshop-not-found"));
+                            return;
+                        }
+
+                        _mapLister.AddDynamicMap(result);
+                        Nominate(p, result.Name);
+                    });
+                });
                 return;
             }
 
-            // Once the list is built, we open the menu on the next frame
-            Server.NextFrame(() =>
-                MapVoteScreenMenu.Open(
-                    _plugin!,
-                    player,
-                    voteOptions,
-                    (p, mapName) => CommandHandler(p, mapName),
-                    _localizer.Localize("nominate.title")
-            ));
+            // Try local maplist first
+            var resolved = ResolveMapNameLocal(player, mapName);
+            if (resolved != null)
+            {
+                Nominate(player, resolved);
+                return;
+            }
+
+            // No local match, try CS2KZ API
+            player.PrintToChat(_localizer.LocalizeWithPrefix("nominate.searching-api"));
+            int playerSlot = player.Slot;
+            _ = Task.Run(async () =>
+            {
+                var apiResults = await _mapLister.LookupByNameAsync(mapName);
+                Server.NextWorldUpdate(() =>
+                {
+                    var p = Utilities.GetPlayerFromSlot(playerSlot);
+                    if (p == null || !p.IsValid) return;
+
+                    if (apiResults.Count == 0)
+                    {
+                        p.PrintToChat(_localizer.LocalizeWithPrefix("general.invalid-map"));
+                        return;
+                    }
+
+                    if (apiResults.Count == 1)
+                    {
+                        _mapLister.AddDynamicMap(apiResults[0]);
+                        Nominate(p, apiResults[0].Name);
+                        return;
+                    }
+
+                    // Multiple matches, show picker menu
+                    var menu = new ChatMenu(_localizer.Localize("nominate.multiple-maps"), _plugin!);
+                    foreach (var m in apiResults)
+                    {
+                        var entry = m;
+                        menu.AddItem(m.Name, (mp, _) =>
+                        {
+                            _mapLister.AddDynamicMap(entry);
+                            Nominate(mp, entry.Name);
+                        });
+                    }
+                    menu.Display(p, 0);
+                });
+            });
         }
-        */
 
         public void Nominate(CCSPlayerController player, string map)
         {
@@ -208,13 +235,6 @@ namespace cs2_rockthevote
             {
                 userNoms = new List<string>();
                 Nominations[userId] = userNoms;
-            }
-
-            // Respect warmup here too (so menu + chat behave the same)
-            if (_gamerules.WarmupRunning && !_nomConfig.EnabledInWarmup)
-            {
-                player.PrintToChat(_localizer.LocalizeWithPrefix("general.validation.warmup"));
-                return;
             }
 
             // Enforce per-player nomination limit
@@ -242,14 +262,7 @@ namespace cs2_rockthevote
                 return;
             }
 
-            // Can't nominate a map on cooldown
-            if (_mapCooldown.IsMapInCooldown(baseName))
-            {
-                player.PrintToChat(_localizer.LocalizeWithPrefix("general.validation.map-played-recently"));
-                return;
-            }
-
-            // ✅ All validations passed — record the nomination now
+            // All validations passed, record the nomination now
             userNoms.Add(mapName);
 
             int totalVotes = Nominations.Values
@@ -271,32 +284,26 @@ namespace cs2_rockthevote
             menu.Display(player, 0);
         }
 
-        // Attempt to resolve the user's text into exactly one map. If 0 matches -> send "invalid" and return null.
-        // If > 1 matches -> show the chat based menu and return null. Otherwise -> return the single map name.
-        private string? ResolveMapNameOrPrompt(CCSPlayerController player, string input, StringLocalizer localizer)
+        // Try to resolve user input against the local maplist only.
+        // Returns null if no match (caller should try API fallback).
+        // Shows a multi-match menu if ambiguous.
+        private string? ResolveMapNameLocal(CCSPlayerController player, string input)
         {
-            // Exact match
             var exact = _mapLister.GetExactMapName(input);
             if (exact is not null)
                 return exact;
 
-            // Find all "contains" matches
             var matches = _mapLister.GetMatchingMapNames(input);
 
-            // No matches found
             if (matches.Count == 0)
-            {
-                player.PrintToChat(localizer.LocalizeWithPrefix("general.invalid-map"));
                 return null;
-            }
-            // Found more than 1 match
+
             if (matches.Count > 1)
             {
                 ShowMultipleMatchesMenu(player, matches);
                 return null;
             }
 
-            // Exactly one
             return matches[0];
         }
 

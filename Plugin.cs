@@ -28,31 +28,23 @@ namespace cs2_rockthevote
     public partial class Plugin(DependencyManager<Plugin, Config> dependencyManager,
         NominationCommand nominationManager,
         ChangeMapManager changeMapManager,
-        VotemapCommand voteMapManager,
         RockTheVoteCommand rtvManager,
-        ExtendRoundTimeCommand extendRoundTime,
-        VoteExtendRoundTimeCommand voteExtendRoundTime,
-        TimeLeftCommand timeLeft,
+        MapVoteManager mapVoteManager,
         MaplistCommand maplistManager,
         ReloadMapsCommand reloadMapsCommand,
-        AFKManager afkManager,
         PluginState pluginState,
         IStringLocalizer stringLocalizer,
         ILogger<Plugin> logger) : BasePlugin, IPluginConfig<Config>
     {
         public override string ModuleName => "RockTheVote";
-        public override string ModuleVersion => "2.1.5";
-        public override string ModuleAuthor => "abnerfs (Updated by Marchand)";
+        public override string ModuleVersion => "3.0.0";
+        public override string ModuleAuthor => "abnerfs, (Updated by Marchand), (Gutted by jvnipers)";
 
         private readonly DependencyManager<Plugin, Config> _dependencyManager = dependencyManager;
         private readonly NominationCommand _nominationManager = nominationManager;
         private readonly ChangeMapManager _changeMapManager = changeMapManager;
-        private readonly VotemapCommand _votemapManager = voteMapManager;
         private readonly RockTheVoteCommand _rtvManager = rtvManager;
-        private readonly AFKManager _afkManager = afkManager;
-        private readonly ExtendRoundTimeCommand _extendRoundTime = extendRoundTime;
-        private readonly VoteExtendRoundTimeCommand _voteExtendRoundTime = voteExtendRoundTime;
-        private readonly TimeLeftCommand _timeLeft = timeLeft;
+        private readonly MapVoteManager _mapVoteManager = mapVoteManager;
         private readonly MaplistCommand _maplistManager = maplistManager;
         private readonly ReloadMapsCommand _reloadMapsCommand = reloadMapsCommand;
         private readonly StringLocalizer _localizer = new(stringLocalizer, "rtv.prefix");
@@ -72,12 +64,7 @@ namespace cs2_rockthevote
         {
             _dependencyManager.OnPluginLoad(this);
             RegisterListener<OnMapStart>(_dependencyManager.OnMapStart);
-
-            RegisterEventHandler<EventVoteCast>((ev, info) =>
-            {
-                PanoramaVote.VoteCast(ev);
-                return HookResult.Continue;
-            });
+            _mapVoteManager.VoteEndedNoVotes += () => _nominationManager.OnVoteEndedNoVotes();
         }
         
         public override void OnAllPluginsLoaded(bool hotReload)
@@ -112,33 +99,6 @@ namespace cs2_rockthevote
             if (config.Version != Config.CurrentVersion)
                 Logger.LogWarning("Configuration version mismatch (Expected: {ExpectedVersion} | Current: {CurrentVersion})", Config.CurrentVersion, config.Version);
         }
-
-        /*
-        [GameEventHandler]
-        public HookResult OnClientSay(EventPlayerChat @event, GameEventInfo info)
-        {
-            var player = Utilities.GetPlayerFromUserid(@event.Userid);
-
-            if (player == null || !player.IsValid || player.IsBot || string.IsNullOrEmpty(@event.Text))
-                return HookResult.Continue;
-
-            string message = @event.Text.Trim();
-
-            if (message.StartsWith("!") && message.Length == 2 && char.IsDigit(message[1]))
-            {
-                int key = message[1] - '0';
-
-                var menu = CS2MenuManager.API.Class.MenuManager.GetActiveMenu(player);
-                if (menu != null && _pluginState.EofVoteHappening && Config.ScreenMenu.EnableChatHelper == true)
-                {
-                    CS2MenuManager.API.Class.MenuManager.OnKeyPress(player, key);
-                    return HookResult.Handled;
-                }
-            }
-
-            return HookResult.Continue;
-        }
-        */
 
         [ConsoleCommand("css_reloadrtv", "Reloads the RTV config.")]
         [CommandHelper(whoCanExecute: CommandUsage.CLIENT_AND_SERVER)]

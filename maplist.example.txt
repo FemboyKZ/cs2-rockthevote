@@ -1,10 +1,10 @@
-//Put your map list file in this same folder as RockTheVote.dll. The plugin will use the file named "maptlist.txt"
+// Put your map list file in the /game/csgo/cfg/ folder. The plugin will use the file named "maptlist.txt"
 
-//For default game maps:
+// For default game maps:
 de_mirage
 de_dust2
 
-//For workshop maps:
+// For workshop maps:
 surf_beginner:3070321829
 surf_rookie:3082548297
 surf_nyx (Tier 1, Linear):3082548297
