@@ -374,7 +374,7 @@ namespace cs2_rockthevote
 
                     if (TimeLeft <= 0)
                     {
-                        // Flag the end — do NOT call EndVote/KillTimer from here.
+                        // Flag the end, do NOT call EndVote/KillTimer from here.
                         // Destroying a timer from inside its own callback is
                         // undefined behaviour in the CS# native layer and segfaults.
                         _voteEndInProgress = true;
