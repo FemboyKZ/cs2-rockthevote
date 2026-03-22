@@ -175,7 +175,7 @@ namespace cs2_rockthevote
                 {
                     MapVoted(p, chosen, isRtv, allowRevote);
                 });
-                item.PostSelectAction = PostSelectAction.Nothing;
+                item.PostSelectAction = PostSelectAction.Close;
 
                 // Store item reference for live vote count updates (first display only)
                 if (!_optionItems.ContainsKey(chosen))
