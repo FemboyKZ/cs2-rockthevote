@@ -73,6 +73,12 @@ namespace cs2_rockthevote
             _mapChangeVerifyTimer = null;
         }
 
+        private static string GetBaseMapName(string displayName)
+        {
+            var idx = displayName.IndexOf(" (", StringComparison.Ordinal);
+            return idx >= 0 ? displayName.Substring(0, idx) : displayName;
+        }
+
         public bool ChangeNextMap(bool mapEnd = false)
         {
             if (mapEnd != _mapEnd)
@@ -93,21 +99,30 @@ namespace cs2_rockthevote
             Server.PrintToChatAll(_localizer.LocalizeWithPrefixInternal(_prefix, "general.changing-map", map.Name));
 
             string mapBefore = Server.MapName ?? string.Empty;
+            // Strip annotation (e.g. " (T3)") so engine commands get a clean map name
+            string cleanName = GetBaseMapName(map.Name);
 
 
             _plugin?.AddTimer(3.0F, () =>
             {
-                if (Server.IsMapValid(map.Name))
+                try
                 {
-                    Server.ExecuteCommand($"changelevel {map.Name}");
+                    if (Server.IsMapValid(cleanName))
+                    {
+                        Server.ExecuteCommand($"changelevel {cleanName}");
+                    }
+                    else if (map.Id is not null)
+                    {
+                        Server.ExecuteCommand($"host_workshop_map {map.Id}");
+                    }
+                    else
+                    {
+                        Server.ExecuteCommand($"ds_workshop_changelevel {cleanName}");
+                    }
                 }
-                else if (map.Id is not null)
+                catch (Exception ex)
                 {
-                    Server.ExecuteCommand($"host_workshop_map {map.Id}");
-                }
-                else
-                {
-                    Server.ExecuteCommand($"ds_workshop_changelevel {map.Name}");
+                    Server.PrintToConsole($"[RTV] Map change command failed: {ex.Message}");
                 }
 
                 // Create 30s verification timer - log debug info if map change failed
@@ -121,7 +136,7 @@ namespace cs2_rockthevote
                         if (string.Equals(current, mapBefore, StringComparison.OrdinalIgnoreCase))
                         {
                             Server.PrintToConsole($"[RTV] Map change to '{map.Name}' failed - still on '{current}' after 30s.");
-                            Server.PrintToConsole($"[RTV] Map details: Name='{map.Name}', Id='{map.Id}', IsMapValid={Server.IsMapValid(map.Name)}");
+                            Server.PrintToConsole($"[RTV] Map details: Name='{map.Name}', Id='{map.Id}', IsMapValid={Server.IsMapValid(cleanName)}");
                             Server.PrintToConsole($"[RTV] Available maps in maplist: {string.Join(", ", _maps.Select(m => m.Name))}");
 
                             Server.PrintToChatAll(_localizer.LocalizeWithPrefixInternal(_prefix, "general.map-change-failed", map.Name));

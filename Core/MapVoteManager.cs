@@ -27,6 +27,7 @@ namespace cs2_rockthevote
         private readonly Dictionary<string, ItemOption> _optionItems = new();
         private bool _activeVoteIsRtv = false;
         private bool _allVotedShortened = false;
+        private bool _voteEndInProgress = false;
         private Plugin? _plugin;
 
         public int TimeLeft { get; private set; } = -1;
@@ -77,6 +78,7 @@ namespace cs2_rockthevote
             _currentVoteOptions.Clear();
             _optionItems.Clear();
             _allVotedShortened = false;
+            _voteEndInProgress = false;
             TimeLeft = 0;
             mapsElected.Clear();
             _isRunoff = false;
@@ -309,6 +311,7 @@ namespace cs2_rockthevote
             _currentVoteOptions.Clear();
             _optionItems.Clear();
             _allVotedShortened = false;
+            _voteEndInProgress = false;
             _activeVoteIsRtv = isRtv;
 
             Votes.Clear();
@@ -364,30 +367,45 @@ namespace cs2_rockthevote
 
             Timer = _plugin?.AddTimer(1.0F, () =>
             {
-                if (TimeLeft <= 0)
+                try
                 {
-                    EndVote(isRtv);
-                }
-                else
-                {
-                    // Auto-shorten: when every eligible player has voted, fast-forward to 5s
-                    if (!_allVotedShortened && _playerVotes.Count >= ServerManager.ValidPlayerCount())
+                    // Guard against ghost ticks after Timer.Kill() from within EndVote
+                    if (_voteEndInProgress || !_pluginState.MapVoteHappening)
+                        return;
+
+                    if (TimeLeft <= 0)
                     {
-                        _allVotedShortened = true;
-                        int shortenTo = 5;
-                        if (TimeLeft > shortenTo)
-                        {
-                            TimeLeft = shortenTo;
-                            Server.PrintToChatAll(_localizer.LocalizeWithPrefix("emv.vote-ending-soon", shortenTo));
-                        }
+                        EndVote(isRtv);
                     }
-                    TimeLeft--;
+                    else
+                    {
+                        // Auto-shorten: when every eligible player has voted, fast-forward to 5s
+                        if (!_allVotedShortened && _playerVotes.Count >= ServerManager.ValidPlayerCount())
+                        {
+                            _allVotedShortened = true;
+                            int shortenTo = 5;
+                            if (TimeLeft > shortenTo)
+                            {
+                                TimeLeft = shortenTo;
+                                Server.PrintToChatAll(_localizer.LocalizeWithPrefix("emv.vote-ending-soon", shortenTo));
+                            }
+                        }
+                        TimeLeft--;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "MapVoteManager timer callback failed");
                 }
             }, TimerFlags.REPEAT | TimerFlags.STOP_ON_MAPCHANGE);
         }
 
         public void EndVote(bool isRtv)
         {
+            if (_voteEndInProgress)
+                return;
+            _voteEndInProgress = true;
+
             KillTimer();
             _currentVoteOptions.Clear();
             
@@ -472,6 +490,7 @@ namespace cs2_rockthevote
             _currentVoteOptions.Clear();
             _optionItems.Clear();
             _allVotedShortened = false;
+            _voteEndInProgress = false;
             Votes.Clear();
             _activeVoteIsRtv = isRtv;
             _pluginState.MapVoteHappening = true;
@@ -514,24 +533,34 @@ namespace cs2_rockthevote
 
             Timer = _plugin?.AddTimer(1.0F, () =>
             {
-                if (TimeLeft <= 0)
+                try
                 {
-                    EndVote(isRtv);
-                }
-                else
-                {
-                    // Auto shorten when every eligible player has voted, fast-forward to 5s
-                    if (!_allVotedShortened && _playerVotes.Count >= ServerManager.ValidPlayerCount())
+                    if (_voteEndInProgress || !_pluginState.MapVoteHappening)
+                        return;
+
+                    if (TimeLeft <= 0)
                     {
-                        _allVotedShortened = true;
-                        int shortenTo = 5;
-                        if (TimeLeft > shortenTo)
-                        {
-                            TimeLeft = shortenTo;
-                            Server.PrintToChatAll(_localizer.LocalizeWithPrefix("emv.vote-ending-soon", shortenTo));
-                        }
+                        EndVote(isRtv);
                     }
-                    TimeLeft--;
+                    else
+                    {
+                        // Auto shorten when every eligible player has voted, fast-forward to 5s
+                        if (!_allVotedShortened && _playerVotes.Count >= ServerManager.ValidPlayerCount())
+                        {
+                            _allVotedShortened = true;
+                            int shortenTo = 5;
+                            if (TimeLeft > shortenTo)
+                            {
+                                TimeLeft = shortenTo;
+                                Server.PrintToChatAll(_localizer.LocalizeWithPrefix("emv.vote-ending-soon", shortenTo));
+                            }
+                        }
+                        TimeLeft--;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "MapVoteManager runoff timer callback failed");
                 }
             }, TimerFlags.REPEAT | TimerFlags.STOP_ON_MAPCHANGE);
         }
