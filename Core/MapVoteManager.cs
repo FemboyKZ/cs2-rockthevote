@@ -197,12 +197,28 @@ namespace cs2_rockthevote
             DisplayVoteMenu(player, _currentVoteOptions, menuTimeLeft, _activeVoteIsRtv, allowRevote: _mapVoteConfig.EnableRevote);
         }
 
+        private void CloseAllVoteMenus()
+        {
+            try
+            {
+                foreach (var player in ServerManager.ValidPlayers())
+                {
+                    if (player.IsValid)
+                        MenuManager.CloseActiveMenu(player);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to close vote menus");
+            }
+        }
+
         private void MapVoted(CCSPlayerController player, string mapName, bool isRtv, bool allowRevote = false)
         {
             if (!player.IsValid || player.UserId == null)
                 return;
 
-            if (!_pluginState.MapVoteHappening || Timer is null)
+            if (!_pluginState.MapVoteHappening || Timer is null || _voteEndInProgress)
                 return;
 
             if (!Votes.ContainsKey(mapName))
@@ -407,17 +423,45 @@ namespace cs2_rockthevote
             _voteEndInProgress = true;
 
             KillTimer();
+
+            // Close all active vote menus BEFORE processing results.
+            // Leaving menus open while we mutate vote state can cause
+            // CS2MenuManager / CounterStrikeSharp to access stale entity
+            // data, resulting in a native segfault.
+            CloseAllVoteMenus();
+
+            // Snapshot the vote results before clearing state
+            var votesSnapshot = new Dictionary<string, int>(Votes);
             _currentVoteOptions.Clear();
-            
+            _optionItems.Clear();
+
+            // Defer the rest of the processing to NextWorldUpdate so it
+            // runs at the start of the next engine frame — a safe point
+            // where all entity data is consistent.
+            Server.NextWorldUpdate(() =>
+            {
+                try
+                {
+                    ProcessVoteResults(votesSnapshot, isRtv);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "EndVote processing failed");
+                    _pluginState.MapVoteHappening = false;
+                }
+            });
+        }
+
+        private void ProcessVoteResults(Dictionary<string, int> votesSnapshot, bool isRtv)
+        {
             string dontChangeOption = _localizer.Localize("emv.dont-change-map");
-            
-            decimal totalVotes = Votes.Select(x => x.Value).Sum();
+
+            decimal totalVotes = votesSnapshot.Values.Sum();
             KeyValuePair<string, int> winner;
             Random rnd = new();
-            
+
             if (totalVotes == 0)
             {
-                // No votes cast — don't change map, reset state so players can RTV/nominate again
                 Server.PrintToChatAll(_localizer.LocalizeWithPrefix("emv.vote-ended-no-votes"));
                 _pluginState.MapVoteHappening = false;
                 _isRunoff = false;
@@ -426,20 +470,19 @@ namespace cs2_rockthevote
             }
             else
             {
-                int maxVotes = Votes.Values.Max();
-                var tiedMaps = Votes.Where(kv => kv.Value == maxVotes).Select(kv => kv.Key).ToList();
+                int maxVotes = votesSnapshot.Values.Max();
+                var tiedMaps = votesSnapshot.Where(kv => kv.Value == maxVotes).Select(kv => kv.Key).ToList();
                 string chosenKey = tiedMaps[rnd.Next(tiedMaps.Count)];
-                winner = new KeyValuePair<string,int>(chosenKey, maxVotes);
+                winner = new KeyValuePair<string, int>(chosenKey, maxVotes);
             }
-            
+
             decimal percent = totalVotes > 0 ? winner.Value / totalVotes * 100M : 0;
 
             // Check minimum win percentage — trigger runoff if not met
             int minPct = _mapVoteConfig.MinWinPercentage;
             if (minPct > 0 && percent < minPct && !_isRunoff && _mapVoteConfig.RunoffEnabled)
             {
-                // Pick top 2 candidates for the runoff (including "Don't Change Map")
-                var mapCandidates = Votes
+                var mapCandidates = votesSnapshot
                     .OrderByDescending(kv => kv.Value)
                     .Take(2)
                     .Select(kv => kv.Key)
@@ -453,7 +496,7 @@ namespace cs2_rockthevote
                     return;
                 }
             }
-            
+
             Server.PrintToChatAll(_localizer.LocalizeWithPrefix("emv.vote-ended", winner.Key, percent, totalVotes));
             _isRunoff = false;
 
