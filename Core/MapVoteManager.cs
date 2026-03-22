@@ -197,22 +197,6 @@ namespace cs2_rockthevote
             DisplayVoteMenu(player, _currentVoteOptions, menuTimeLeft, _activeVoteIsRtv, allowRevote: _mapVoteConfig.EnableRevote);
         }
 
-        private void CloseAllVoteMenus()
-        {
-            try
-            {
-                foreach (var player in ServerManager.ValidPlayers())
-                {
-                    if (player.IsValid)
-                        MenuManager.CloseActiveMenu(player);
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Failed to close vote menus");
-            }
-        }
-
         private void MapVoted(CCSPlayerController player, string mapName, bool isRtv, bool allowRevote = false)
         {
             if (!player.IsValid || player.UserId == null)
@@ -385,13 +369,25 @@ namespace cs2_rockthevote
             {
                 try
                 {
-                    // Guard against ghost ticks after Timer.Kill() from within EndVote
                     if (_voteEndInProgress || !_pluginState.MapVoteHappening)
                         return;
 
                     if (TimeLeft <= 0)
                     {
-                        EndVote(isRtv);
+                        // Flag the end — do NOT call EndVote/KillTimer from here.
+                        // Destroying a timer from inside its own callback is
+                        // undefined behaviour in the CS# native layer and segfaults.
+                        _voteEndInProgress = true;
+                        bool capturedIsRtv = isRtv;
+                        Server.NextWorldUpdate(() =>
+                        {
+                            try { EndVote(capturedIsRtv); }
+                            catch (Exception ex)
+                            {
+                                _logger.LogError(ex, "EndVote failed");
+                                _pluginState.MapVoteHappening = false;
+                            }
+                        });
                     }
                     else
                     {
@@ -418,38 +414,18 @@ namespace cs2_rockthevote
 
         public void EndVote(bool isRtv)
         {
-            if (_voteEndInProgress)
-                return;
+            // This method must only be called from NextWorldUpdate,
+            // never from inside a timer callback.
             _voteEndInProgress = true;
 
             KillTimer();
 
-            // Close all active vote menus BEFORE processing results.
-            // Leaving menus open while we mutate vote state can cause
-            // CS2MenuManager / CounterStrikeSharp to access stale entity
-            // data, resulting in a native segfault.
-            CloseAllVoteMenus();
-
-            // Snapshot the vote results before clearing state
+            // Snapshot results before clearing anything
             var votesSnapshot = new Dictionary<string, int>(Votes);
             _currentVoteOptions.Clear();
             _optionItems.Clear();
 
-            // Defer the rest of the processing to NextWorldUpdate so it
-            // runs at the start of the next engine frame — a safe point
-            // where all entity data is consistent.
-            Server.NextWorldUpdate(() =>
-            {
-                try
-                {
-                    ProcessVoteResults(votesSnapshot, isRtv);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "EndVote processing failed");
-                    _pluginState.MapVoteHappening = false;
-                }
-            });
+            ProcessVoteResults(votesSnapshot, isRtv);
         }
 
         private void ProcessVoteResults(Dictionary<string, int> votesSnapshot, bool isRtv)
@@ -583,7 +559,17 @@ namespace cs2_rockthevote
 
                     if (TimeLeft <= 0)
                     {
-                        EndVote(isRtv);
+                        _voteEndInProgress = true;
+                        bool capturedIsRtv = isRtv;
+                        Server.NextWorldUpdate(() =>
+                        {
+                            try { EndVote(capturedIsRtv); }
+                            catch (Exception ex)
+                            {
+                                _logger.LogError(ex, "EndVote (runoff) failed");
+                                _pluginState.MapVoteHappening = false;
+                            }
+                        });
                     }
                     else
                     {
