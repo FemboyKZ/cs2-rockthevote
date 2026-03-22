@@ -37,7 +37,7 @@ namespace cs2_rockthevote
         ILogger<Plugin> logger) : BasePlugin, IPluginConfig<Config>
     {
         public override string ModuleName => "RockTheVote";
-        public override string ModuleVersion => "3.1.0";
+        public override string ModuleVersion => "3.2.0";
         public override string ModuleAuthor => "abnerfs, (Updated by Marchand), (Gutted by jvnipers)";
 
         private readonly DependencyManager<Plugin, Config> _dependencyManager = dependencyManager;
